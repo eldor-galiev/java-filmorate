@@ -19,14 +19,13 @@ public class UserController {
 
     @GetMapping
     public Collection<User> getAll() {
+        log.info("Запрос списка всех пользователей");
         return users.values();
     }
 
     @PostMapping
     public User create(@Valid @RequestBody User user) {
-        if (user.getName() == null || user.getName().isBlank()) {
-            user.setName(user.getLogin());
-        }
+        setNameFromLoginIfBlank(user);
         user.setId(nextId++);
         users.put(user.getId(), user);
         log.info("Создан пользователь: {}", user);
@@ -39,11 +38,15 @@ public class UserController {
             log.warn("Пользователь с id={} не найден", user.getId());
             throw new NotFoundException("Пользователь с id=" + user.getId() + " не найден");
         }
-        if (user.getName() == null || user.getName().isBlank()) {
-            user.setName(user.getLogin());
-        }
+        setNameFromLoginIfBlank(user);
         users.put(user.getId(), user);
         log.info("Обновлён пользователь: {}", user);
         return user;
+    }
+
+    private void setNameFromLoginIfBlank(User user) {
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
+        }
     }
 }

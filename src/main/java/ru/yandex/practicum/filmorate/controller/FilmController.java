@@ -19,6 +19,7 @@ public class FilmController {
 
     @GetMapping
     public Collection<Film> getAll() {
+        log.info("Запрос списка всех фильмов");
         return films.values();
     }
 
