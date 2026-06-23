@@ -8,10 +8,7 @@ import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -27,7 +24,9 @@ public class UserService {
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
         }
-        return userStorage.add(user);
+        User created = userStorage.add(user);
+        log.info("Создан пользователь: {}", created);
+        return created;
     }
 
     public User update(User user) {
@@ -36,7 +35,9 @@ public class UserService {
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
         }
-        return userStorage.update(user);
+        User updated = userStorage.update(user);
+        log.info("Обновлён пользователь: {}", updated);
+        return updated;
     }
 
     public User getById(int id) {
@@ -49,44 +50,34 @@ public class UserService {
     }
 
     public void addFriend(int userId, int friendId) {
-        User user = userStorage.findById(userId)
+        userStorage.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
-        User friend = userStorage.findById(friendId)
+        userStorage.findById(friendId)
                 .orElseThrow(() -> new NotFoundException("Пользователь с id=" + friendId + " не найден"));
-        user.getFriends().add(friendId);
-        friend.getFriends().add(userId);
-        log.debug("Пользователь {} добавил в друзья пользователя {}", userId, friendId);
+        userStorage.addFriend(userId, friendId);
+        log.info("Пользователь {} добавил в друзья пользователя {}", userId, friendId);
     }
 
     public void removeFriend(int userId, int friendId) {
-        User user = userStorage.findById(userId)
+        userStorage.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
-        User friend = userStorage.findById(friendId)
+        userStorage.findById(friendId)
                 .orElseThrow(() -> new NotFoundException("Пользователь с id=" + friendId + " не найден"));
-        user.getFriends().remove(friendId);
-        friend.getFriends().remove(userId);
-        log.debug("Пользователь {} удалил из друзей пользователя {}", userId, friendId);
+        userStorage.removeFriend(userId, friendId);
+        log.info("Пользователь {} удалил из друзей пользователя {}", userId, friendId);
     }
 
     public List<User> getFriends(int userId) {
-        User user = userStorage.findById(userId)
+        userStorage.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
-        return user.getFriends().stream()
-                .map(id -> userStorage.findById(id)
-                        .orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден")))
-                .collect(Collectors.toList());
+        return userStorage.getFriends(userId);
     }
 
     public List<User> getCommonFriends(int userId, int otherId) {
-        User user = userStorage.findById(userId)
+        userStorage.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
-        User other = userStorage.findById(otherId)
+        userStorage.findById(otherId)
                 .orElseThrow(() -> new NotFoundException("Пользователь с id=" + otherId + " не найден"));
-        Set<Integer> common = new HashSet<>(user.getFriends());
-        common.retainAll(other.getFriends());
-        return common.stream()
-                .map(id -> userStorage.findById(id)
-                        .orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден")))
-                .collect(Collectors.toList());
+        return userStorage.getCommonFriends(userId, otherId);
     }
 }
