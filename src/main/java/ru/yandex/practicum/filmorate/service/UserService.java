@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
@@ -24,18 +25,13 @@ public class UserService {
     }
 
     public User add(User user) {
-        if (user.getName() == null || user.getName().isBlank()) {
-            user.setName(user.getLogin());
-        }
+        setNameIfBlank(user);
         return userStorage.add(user);
     }
 
     public User update(User user) {
-        userStorage.findById(user.getId())
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + user.getId() + " не найден"));
-        if (user.getName() == null || user.getName().isBlank()) {
-            user.setName(user.getLogin());
-        }
+        getById(user.getId());
+        setNameIfBlank(user);
         return userStorage.update(user);
     }
 
@@ -49,44 +45,50 @@ public class UserService {
     }
 
     public void addFriend(int userId, int friendId) {
-        User user = userStorage.findById(userId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
-        User friend = userStorage.findById(friendId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + friendId + " не найден"));
+        checkDifferentUsers(userId, friendId);
+        User user = getById(userId);
+        User friend = getById(friendId);
         user.getFriends().add(friendId);
         friend.getFriends().add(userId);
         log.debug("Пользователь {} добавил в друзья пользователя {}", userId, friendId);
     }
 
     public void removeFriend(int userId, int friendId) {
-        User user = userStorage.findById(userId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
-        User friend = userStorage.findById(friendId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + friendId + " не найден"));
+        checkDifferentUsers(userId, friendId);
+        User user = getById(userId);
+        User friend = getById(friendId);
         user.getFriends().remove(friendId);
         friend.getFriends().remove(userId);
         log.debug("Пользователь {} удалил из друзей пользователя {}", userId, friendId);
     }
 
     public List<User> getFriends(int userId) {
-        User user = userStorage.findById(userId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
+        User user = getById(userId);
         return user.getFriends().stream()
-                .map(id -> userStorage.findById(id)
-                        .orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден")))
+                .map(this::getById)
                 .collect(Collectors.toList());
     }
 
     public List<User> getCommonFriends(int userId, int otherId) {
-        User user = userStorage.findById(userId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
-        User other = userStorage.findById(otherId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + otherId + " не найден"));
+        checkDifferentUsers(userId, otherId);
+        User user = getById(userId);
+        User other = getById(otherId);
         Set<Integer> common = new HashSet<>(user.getFriends());
         common.retainAll(other.getFriends());
         return common.stream()
-                .map(id -> userStorage.findById(id)
-                        .orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден")))
+                .map(this::getById)
                 .collect(Collectors.toList());
+    }
+
+    private void setNameIfBlank(User user) {
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
+        }
+    }
+
+    private void checkDifferentUsers(int userId, int otherId) {
+        if (userId == otherId) {
+            throw new ValidationException("Идентификаторы пользователей должны быть разными");
+        }
     }
 }

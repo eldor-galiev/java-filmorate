@@ -15,4 +15,6 @@ public interface FilmStorage {
     Optional<Film> findById(int id);
 
     Collection<Film> findAll();
+
+    Collection<Film> findPopular(int count);
 }
