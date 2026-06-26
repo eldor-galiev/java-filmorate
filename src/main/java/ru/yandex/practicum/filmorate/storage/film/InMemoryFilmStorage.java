@@ -5,14 +5,18 @@ import ru.yandex.practicum.filmorate.model.Film;
 
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
 public class InMemoryFilmStorage implements FilmStorage {
     private final Map<Integer, Film> films = new LinkedHashMap<>();
+    private final Map<Integer, Set<Integer>> likes = new HashMap<>();
     private int nextId = 1;
 
     @Override
@@ -24,15 +28,8 @@ public class InMemoryFilmStorage implements FilmStorage {
 
     @Override
     public Film update(Film film) {
-        Film existing = films.get(film.getId());
-        film.getLikes().addAll(existing.getLikes());
         films.put(film.getId(), film);
         return film;
-    }
-
-    @Override
-    public void delete(int id) {
-        films.remove(id);
     }
 
     @Override
@@ -46,10 +43,24 @@ public class InMemoryFilmStorage implements FilmStorage {
     }
 
     @Override
+    public void addLike(int filmId, int userId) {
+        likes.computeIfAbsent(filmId, id -> new HashSet<>()).add(userId);
+    }
+
+    @Override
+    public void removeLike(int filmId, int userId) {
+        likes.getOrDefault(filmId, Set.of()).remove(userId);
+    }
+
+    @Override
     public Collection<Film> findPopular(int count) {
         return films.values().stream()
-                .sorted(Comparator.comparingInt((Film film) -> film.getLikes().size()).reversed())
+                .sorted(Comparator.comparingInt((Film film) -> likeCount(film.getId())).reversed())
                 .limit(count)
                 .collect(Collectors.toList());
+    }
+
+    private int likeCount(int filmId) {
+        return likes.getOrDefault(filmId, Set.of()).size();
     }
 }

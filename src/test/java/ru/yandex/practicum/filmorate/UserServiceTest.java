@@ -30,6 +30,10 @@ class UserServiceTest {
         return user;
     }
 
+    private List<Integer> friendIds(int userId) {
+        return userService.getFriends(userId).stream().map(User::getId).toList();
+    }
+
     @Test
     void addUsesLoginWhenNameBlank() {
         User user = user("login");
@@ -39,26 +43,25 @@ class UserServiceTest {
     }
 
     @Test
-    void addFriendCreatesMutualFriendship() {
+    void addFriendIsOneDirectional() {
         int firstId = userService.add(user("first")).getId();
         int secondId = userService.add(user("second")).getId();
 
         userService.addFriend(firstId, secondId);
 
-        assertTrue(userService.getById(firstId).getFriends().contains(secondId));
-        assertTrue(userService.getById(secondId).getFriends().contains(firstId));
+        assertEquals(List.of(secondId), friendIds(firstId));
+        assertTrue(friendIds(secondId).isEmpty());
     }
 
     @Test
-    void removeFriendRemovesMutualFriendship() {
+    void removeFriendRemovesFriendship() {
         int firstId = userService.add(user("first")).getId();
         int secondId = userService.add(user("second")).getId();
         userService.addFriend(firstId, secondId);
 
         userService.removeFriend(firstId, secondId);
 
-        assertFalse(userService.getById(firstId).getFriends().contains(secondId));
-        assertFalse(userService.getById(secondId).getFriends().contains(firstId));
+        assertTrue(friendIds(firstId).isEmpty());
     }
 
     @Test
