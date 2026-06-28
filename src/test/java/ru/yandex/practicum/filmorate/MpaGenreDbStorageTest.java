@@ -11,6 +11,8 @@ import ru.yandex.practicum.filmorate.model.Mpa;
 import ru.yandex.practicum.filmorate.storage.genre.GenreDbStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaDbStorage;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @JdbcTest
@@ -55,5 +57,19 @@ class MpaGenreDbStorageTest {
     @Test
     void findGenreByUnknownIdReturnsEmpty() {
         assertThat(genreStorage.findById(9999)).isEmpty();
+    }
+
+    @Test
+    void findGenresByIdsReturnsMatchingGenresSorted() {
+        assertThat(genreStorage.findByIds(List.of(3, 1)))
+                .extracting(Genre::getName)
+                .containsExactly("Комедия", "Мультфильм");
+    }
+
+    @Test
+    void findGenresByIdsSkipsUnknownIds() {
+        assertThat(genreStorage.findByIds(List.of(1, 9999)))
+                .extracting(Genre::getId)
+                .containsExactly(1);
     }
 }

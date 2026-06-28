@@ -14,10 +14,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Primary
 @Repository
@@ -76,15 +80,14 @@ public class FilmDbStorage implements FilmStorage {
         if (films.isEmpty()) {
             return Optional.empty();
         }
-        Film film = films.getFirst();
-        film.setGenres(findGenres(id));
-        return Optional.of(film);
+        loadGenres(films);
+        return Optional.of(films.getFirst());
     }
 
     @Override
     public Collection<Film> findAll() {
         List<Film> films = jdbcTemplate.query(SELECT_FILM + " ORDER BY f.id", this::mapRowToFilm);
-        films.forEach(film -> film.setGenres(findGenres(film.getId())));
+        loadGenres(films);
         return films;
     }
 
@@ -105,7 +108,7 @@ public class FilmDbStorage implements FilmStorage {
                 LIMIT ?
                 """;
         List<Film> films = jdbcTemplate.query(sql, this::mapRowToFilm, count);
-        films.forEach(film -> film.setGenres(findGenres(film.getId())));
+        loadGenres(films);
         return films;
     }
 
@@ -124,17 +127,27 @@ public class FilmDbStorage implements FilmStorage {
                 });
     }
 
-    private List<Genre> findGenres(int filmId) {
-        return jdbcTemplate.query(
-                "SELECT g.id, g.name FROM film_genres fg JOIN genres g ON fg.genre_id = g.id "
-                        + "WHERE fg.film_id = ? ORDER BY g.id",
-                (rs, rowNum) -> {
+    private void loadGenres(List<Film> films) {
+        if (films.isEmpty()) {
+            return;
+        }
+        Map<Integer, Film> filmsById = films.stream()
+                .collect(Collectors.toMap(Film::getId, film -> film));
+        filmsById.values().forEach(film -> film.setGenres(new ArrayList<>()));
+
+        String placeholders = String.join(",", Collections.nCopies(filmsById.size(), "?"));
+        jdbcTemplate.query(
+                "SELECT fg.film_id, g.id, g.name FROM film_genres fg "
+                        + "JOIN genres g ON fg.genre_id = g.id "
+                        + "WHERE fg.film_id IN (" + placeholders + ") "
+                        + "ORDER BY fg.film_id, g.id",
+                rs -> {
                     Genre genre = new Genre();
                     genre.setId(rs.getInt("id"));
                     genre.setName(rs.getString("name"));
-                    return genre;
+                    filmsById.get(rs.getInt("film_id")).getGenres().add(genre);
                 },
-                filmId);
+                filmsById.keySet().toArray());
     }
 
     private Film mapRowToFilm(ResultSet rs, int rowNum) throws SQLException {
